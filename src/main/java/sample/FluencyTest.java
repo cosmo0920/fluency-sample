@@ -65,10 +65,11 @@ public class FluencyTest {
 
     public void run() {
         int numThreads = 1;
-
-        // now create an object to consume the messages
         executor = Executors.newFixedThreadPool(numThreads);
-        executor.submit(new FluentdHandler(fluentLogger, executor));
+
+        for (int i = 0; i < numThreads; i++) {
+            executor.submit(new FluentdHandler(fluentLogger, executor));
+        }
     }
 
     public static void main(String[] args) throws IOException {
