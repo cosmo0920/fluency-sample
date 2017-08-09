@@ -28,7 +28,7 @@ public class FluencyTest {
     }
 
     public Fluency setupFluentdLogger() throws IOException {
-        Fluency.Config fConf = new Fluency.Config().setAckResponseMode(true).setMaxBufferSize(Long.valueOf(128 * 1024 * 1024L));
+        Fluency.Config fConf = new Fluency.Config().setMaxBufferSize(Long.valueOf(128 * 1024 * 1024L));
         return Fluency.defaultFluency(fConf);
     }
 
