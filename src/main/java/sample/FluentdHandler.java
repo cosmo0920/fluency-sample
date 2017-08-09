@@ -16,52 +16,62 @@ public class FluentdHandler implements Runnable {
 
     private final Fluency logger;
     private final ExecutorService executor;
+    private boolean interruptable;
 
-    public FluentdHandler(Fluency logger, ExecutorService executor) {
+    public FluentdHandler(Fluency logger, ExecutorService executor, boolean interruptible) {
         this.logger = logger;
         this.executor = executor;
+        this.interruptable = interruptible;
     }
 
     public void run() {
-        Exception ex = null;
-
         while (!executor.isShutdown()) {
+            if (interruptable) {
+                runInternal();
+            } else {
+                while (true) {
+                    runInternal();
+                }
+            }
+        }
+    }
+
+    private void runInternal() {
+        Exception ex = null;
+        
+        try {
+            emitTestEvent();
+        } catch (BufferFullException bfe) {
+            LOG.error("fluentd logger reached buffer full. Wait 1 second for retry", bfe);
+
             while (true) {
                 try {
+                    TimeUnit.SECONDS.sleep(1);
+                } catch (InterruptedException ie) {
+                    LOG.warn("Interrupted during sleep");
+                    Thread.currentThread().interrupt();
+                }
+
+                try {
                     emitTestEvent();
-                } catch (BufferFullException bfe) {
-                    LOG.error("fluentd logger reached buffer full. Wait 1 second for retry", bfe);
+                    LOG.info("Retry emit succeeded. Buffer full is resolved");
+                    break;
+                } catch (IOException e) {}
 
-                    while (true) {
-                        try {
-                            TimeUnit.SECONDS.sleep(1);
-                        } catch (InterruptedException ie) {
-                            LOG.warn("Interrupted during sleep");
-                            Thread.currentThread().interrupt();
-                        }
+                LOG.error("fluentd logger is still buffer full. Wait 1 second for next retry");
+            }
+        } catch (IOException e) {
+            ex = e;
+        }
 
-                        try {
-                            emitTestEvent();
-                            LOG.info("Retry emit succeeded. Buffer full is resolved");
-                            break;
-                        } catch (IOException e) {}
-
-                        LOG.error("fluentd logger is still buffer full. Wait 1 second for next retry");
-                    }
-                } catch (IOException e) {
-                    ex = e;
-                }
-
-                if (ex != null) {
-                    LOG.error("can't send logs to fluentd. Wait 1 second", ex);
-                    ex = null;
-                    try {
-                        TimeUnit.SECONDS.sleep(1);
-                    } catch (InterruptedException ie) {
-                        LOG.warn("Interrupted during sleep");
-                        Thread.currentThread().interrupt();
-                    }
-                }
+        if (ex != null) {
+            LOG.error("can't send logs to fluentd. Wait 1 second", ex);
+            ex = null;
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException ie) {
+                LOG.warn("Interrupted during sleep");
+                Thread.currentThread().interrupt();
             }
         }
     }

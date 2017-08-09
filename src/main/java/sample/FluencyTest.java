@@ -22,6 +22,7 @@ public class FluencyTest {
     private static final Logger LOG = LoggerFactory.getLogger(FluencyTest.class);
     private ExecutorService executor;
     private final Fluency fluentLogger;
+    private static final boolean interruptible = true;
 
     public FluencyTest() throws IOException {
         this.fluentLogger = setupFluentdLogger();
@@ -68,7 +69,7 @@ public class FluencyTest {
         executor = Executors.newFixedThreadPool(numThreads);
 
         for (int i = 0; i < numThreads; i++) {
-            executor.submit(new FluentdHandler(fluentLogger, executor));
+            executor.submit(new FluentdHandler(fluentLogger, executor, interruptible));
         }
     }
 
